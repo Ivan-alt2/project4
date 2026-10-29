@@ -143,5 +143,4 @@ class Comment(TimestampModel):
         default_related_name = 'comments'
 
     def __str__(self):
-        # Здесь оставляем составную строку — она не обрезается, и это нормально
         return f'Комментарий {self.author.username} поста {self.post.title}'
