@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.db.models.query import QuerySet
@@ -16,7 +17,9 @@ POSTS_ON_PAGE = 10
 
 
 def get_paginator_page(request, query_set, posts_on_page=POSTS_ON_PAGE):
-    return Paginator(query_set, posts_on_page).get_page(request.GET.get('page'))
+    return Paginator(query_set, posts_on_page).get_page(
+        request.GET.get('page')
+    )
 
 
 class OnlyAuthorMixin(UserPassesTestMixin):
@@ -62,7 +65,6 @@ def delete_post(request, post_id):
         return redirect('blog:post_detail', post_id)
 
     if request.method != 'POST':
-        # Если не POST — показываем страницу подтверждения (или редиректим, зависит от UX)
         return render(request, 'blog/create.html', {
             'post': post,
             'form': PostForm(instance=post),
@@ -130,7 +132,6 @@ def add_comment(request, post_id):
     form = CommentCreateForm(request.POST or None)
 
     if not form.is_valid():
-        # Guard clause: сразу возвращаем рендер, если форма невалидна
         return render(request, 'blog/detail.html', {
             'post': post,
             'form': form,
