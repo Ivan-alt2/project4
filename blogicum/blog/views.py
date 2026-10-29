@@ -18,7 +18,7 @@ POSTS_ON_PAGE = 10
 
 def get_paginator_page(request, query_set, posts_on_page=POSTS_ON_PAGE):
     return Paginator(query_set, posts_on_page).get_page(
-        request.GET.get('page')
+        request.GET.get('page'),
     )
 
 
@@ -28,11 +28,14 @@ class OnlyAuthorMixin(UserPassesTestMixin):
 
 
 def get_published_posts(
-    posts: QuerySet = Post.objects.all(),
+    posts: QuerySet = None,
     use_filtering: bool = True,
     use_select_related: bool = True,
     use_annotation: bool = True,
 ):
+    if posts is None:
+        posts = Post.objects.all()
+
     if use_filtering:
         posts = posts.filter(
             pub_date__lt=timezone.now(),
@@ -62,16 +65,20 @@ def delete_post(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
     if post.author != request.user:
-        return redirect('blog:post_detail', post_id)
+        return redirect('blog:post_detail', post_id=post_id)
 
     if request.method != 'POST':
-        return render(request, 'blog/create.html', {
-            'post': post,
-            'form': PostForm(instance=post),
-        })
+        return render(
+            request,
+            'blog/create.html',
+            {
+                'post': post,
+                'form': PostForm(instance=post),
+            },
+        )
 
     post.delete()
-    return redirect('blog:profile', request.user.username)
+    return redirect('blog:profile', username=request.user.username)
 
 
 @login_required
@@ -79,17 +86,21 @@ def edit_post(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
     if post.author != request.user:
-        return redirect('blog:post_detail', post_id)
+        return redirect('blog:post_detail', post_id=post_id)
 
     form = PostForm(request.POST or None, instance=post)
     if not form.is_valid():
-        return render(request, 'blog/create.html', {
-            'form': form,
-            'post': post,
-        })
+        return render(
+            request,
+            'blog/create.html',
+            {
+                'form': form,
+                'post': post,
+            },
+        )
 
     form.save()
-    return redirect('blog:post_detail', post_id)
+    return redirect('blog:post_detail', post_id=post.id)
 
 
 @login_required
@@ -101,10 +112,14 @@ def edit_comment(request, post_id, comment_id):
 
     form = CommentCreateForm(request.POST or None, instance=comment)
     if not form.is_valid():
-        return render(request, 'blog/comment.html', {
-            'form': form,
-            'comment': comment,
-        })
+        return render(
+            request,
+            'blog/comment.html',
+            {
+                'form': form,
+                'comment': comment,
+            },
+        )
 
     form.save()
     return redirect('blog:post_detail', post_id=post_id)
@@ -115,15 +130,17 @@ def delete_comment(request, post_id, comment_id):
     comment = get_object_or_404(Comment, id=comment_id)
 
     if comment.author != request.user:
-        return redirect('blog:post_detail', post_id)
+        return redirect('blog:post_detail', post_id=post_id)
 
     if request.method != 'POST':
-        return render(request, 'blog/comment.html', {
-            'comment': comment,
-        })
+        return render(
+            request,
+            'blog/comment.html',
+            {'comment': comment},
+        )
 
     comment.delete()
-    return redirect('blog:post_detail', post_id)
+    return redirect('blog:post_detail', post_id=post_id)
 
 
 @login_required
@@ -132,10 +149,14 @@ def add_comment(request, post_id):
     form = CommentCreateForm(request.POST or None)
 
     if not form.is_valid():
-        return render(request, 'blog/detail.html', {
-            'post': post,
-            'form': form,
-        })
+        return render(
+            request,
+            'blog/detail.html',
+            {
+                'post': post,
+                'form': form,
+            },
+        )
 
     comment = form.save(commit=False)
     comment.post = post
@@ -173,7 +194,7 @@ class PostDetailView(DetailView):
 class CategoryPostListView(ListView):
     model = Post
     paginate_by = POSTS_ON_PAGE
-    template_name = "blog/category.html"
+    template_name = 'blog/category.html'
 
     def get_category(self):
         return get_object_or_404(
@@ -200,7 +221,7 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     def get_success_url(self):
         return reverse(
             'blog:profile',
-            args=[self.request.user.username],
+            kwargs={'username': self.request.user.username},
         )
 
     def form_valid(self, form):
@@ -238,4 +259,7 @@ def edit_profile(request):
         return render(request, 'blog/user.html', {'form': form})
 
     form.save()
-    return redirect('blog:profile', request.user.username)
+    return redirect(
+        'blog:profile',
+        username=request.user.username,
+    )
